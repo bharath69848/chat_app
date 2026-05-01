@@ -16,7 +16,7 @@ export async function getMe(req,res,next){
 
   catch(error){
     res.status(500);
-    next();
+    next(error);
   }
 }
 
@@ -33,19 +33,26 @@ export async function authCallback(req,res,next){
     let user = await User.findOne({clerkId})
 
     if(!user){
-      const clerkUser = await clerkClient.users.getUser(clerkId);
-
-      user = await User.create({
-        clerkId,
-        name: clerkUser.firstName.trim(),
-        email: clerkUser.emailAddresses[0]?.emailAddress,
-        avatar: clerkUser.imageUrl
-      });
+       const clerkUser = await clerkClient.users.getUser(clerkId);
+       const name = [clerkUser.firstName, clerkUser.lastName]
+         .filter(Boolean)
+         .join(" ")
+         .trim();
+       const email = clerkUser.emailAddresses?.[0]?.emailAddress;
+       if (!name || !email) {
+         return res.status(422).json({ message: "Missing required profile fields" });
+       }
+       user = await User.create({
+         clerkId,
+         name,
+         email,
+         avatar: clerkUser.imageUrl
+       });
     }
 
     res.json(user);
-  }catch{
+  }catch(error){
     res.status(500);
-    next();
+    next(error);
   }
 }
